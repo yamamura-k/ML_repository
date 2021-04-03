@@ -6,6 +6,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 from model import Generator, Discriminator
 from utils import setup_logger
