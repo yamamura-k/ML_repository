@@ -137,7 +137,7 @@ if __name__=="__main__":
     plt.axis("off")
     ims = [[plt.imshow(np.transpose(i,(1,2,0)), animated=True)] for i in img_list]
     ani = animation.ArtistAnimation(fig, ims, interval=1000, repeat_delay=1000, blit=True)
-    try:ani.save("./DAGAN.gif", writer="imagemagick")
+    try:ani.save("./DCGAN.gif", writer="imagemagick")
     except:pass
     try:ani.save('./DCGAN.mp4', writer="ffmpeg")
     except:pass
