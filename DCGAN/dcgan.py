@@ -5,10 +5,11 @@ import torch.utils.data
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-
-
+import matplotlib.pyplot as plt
 from model import Generator, Discriminator
-def weight_init(m):
+from utils import setup_logger
+
+def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)
@@ -17,9 +18,18 @@ def weight_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 def main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, beta1, lr, dataloader, device, ngpu):
+    torch.manual_seed(0)
 
-    G = Generator(input_size, gen_filter_size, output_size, ngpu=ngpu)
-    D = Discriminator(output_size, dis_filter_size, ngpu=ngpu)
+    G = Generator(input_size, gen_filter_size, output_size, ngpu=ngpu).to(device)
+    D = Discriminator(output_size, dis_filter_size, ngpu=ngpu).to(device)
+    
+    if (device.type == 'cuda') and (ngpu > 1):
+        G = nn.DataParallel(G, list(range(ngpu)))
+        D = nn.DataParallel(D, list(range(ngpu)))
+
+    G.apply(weights_init)
+    D.apply(weights_init)
+
     criterion = nn.BCELoss()
     fixed_noise = torch.randn(64, input_size, 1, 1, device=device)
     real_rabel = 1.
@@ -31,6 +41,8 @@ def main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, 
     img_list = []
     G_losses = []
     D_losses = []
+
+    iters = 0
 
     for epoch in range(num_epochs):
         for i, data in enumerate(dataloader, 0):
@@ -64,10 +76,24 @@ def main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, 
             D_G_z2 = output.mean().item()
 
             optimizerG.step()
+            if i%50 == 0:
+                logger.info(f'[{epoch}/{num_epochs}][{i}/{len(dataloader)}]\tLoss_D: {errD.item():.4f}\tLoss_G: {errG.item():.4f}\tD(x): {D_x:.4f}\tD(G(z)): {D_G_z1:.4f} / {D_G_z2:.4f}')
+            G_losses.append(errG.item())
+            D_losses.append(errD.item())
+            if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+                with torch.no_grad():
+                    fake = G(fixed_noise).detach().cpu()
+                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+
+            iters += 1
+    torch.save(G.state_dict(), "./generator.pth")
+    torch.save(D.state_dict(), "./discriminator.pth")
+    return img_list, G_losses, D_losses
 
 if __name__=="__main__":
+    logger = setup_logger.setLevel(10)
     # Root directory for dataset
-    dataroot = "data/celeba"
+    dataroot = "../data/celeba_hq"
 
     workers = 2
     batch_size = 128
@@ -91,6 +117,25 @@ if __name__=="__main__":
                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
                                    ]))
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers)
-    device = torch.device("cuda:0" if (torch.cuda.is_avaliable() and ngpu > 0) else "cpu")
+    device = torch.device("cuda" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, beta1, lr, dataloader, device, ngpu)
+    img_list, G_losses, D_losses = main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, beta1, lr, dataloader, device, ngpu)
+    
+    #plot losses
+    plt.figure(figsize=(10,5))
+    plt.title("Generator and Discriminator Loss During Training")
+    plt.plot(G_losses,label="G")
+    plt.plot(D_losses,label="D")
+    plt.xlabel("iterations")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig("./DCGAN.png")
+
+    fig = plt.figure(figsize=(8,8))
+    plt.axis("off")
+    ims = [[plt.imshow(np.transpose(i,(1,2,0)), animated=True)] for i in img_list]
+    ani = animation.ArtistAnimation(fig, ims, interval=1000, repeat_delay=1000, blit=True)
+    try:ani.save("./DAGAN.gif", writer="imagemagick")
+    except:pass
+    try:ani.save('./DCGAN.mp4', writer="ffmpeg")
+    except:pass
