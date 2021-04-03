@@ -95,10 +95,10 @@ def main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, 
 if __name__=="__main__":
     logger = setup_logger.setLevel(10)
     # Root directory for dataset
-    dataroot = "../data/celeba_hq/train"
+    dataroot = "../data/celeba_hq_female"
 
     workers = 2
-    batch_size = 128
+    batch_size = 256
     image_size = 64
 
     output_size = 3
@@ -106,7 +106,7 @@ if __name__=="__main__":
     gen_filter_size = 64
     dis_filter_size = 64
 
-    num_epochs = 5
+    num_epochs = 10
     lr = 0.0002
     beta1 = 0.5
     ngpu = 1
