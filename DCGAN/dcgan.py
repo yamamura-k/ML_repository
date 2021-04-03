@@ -98,7 +98,7 @@ if __name__=="__main__":
     dataroot = "../data/celeba_hq_female"
 
     workers = 2
-    batch_size = 256
+    batch_size = 128
     image_size = 64
 
     output_size = 3
