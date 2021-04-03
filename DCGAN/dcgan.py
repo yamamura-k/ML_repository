@@ -6,6 +6,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import matplotlib.pyplot as plt
+import numpy as np
 from model import Generator, Discriminator
 from utils import setup_logger
 
@@ -93,7 +94,7 @@ def main(input_size, output_size, gen_filter_size, dis_filter_size, num_epochs, 
 if __name__=="__main__":
     logger = setup_logger.setLevel(10)
     # Root directory for dataset
-    dataroot = "../data/celeba_hq"
+    dataroot = "../data/celeba_hq/train"
 
     workers = 2
     batch_size = 128
