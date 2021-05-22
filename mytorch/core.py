@@ -82,7 +82,7 @@ class Variable:
         self.generation = f.generation + 1
     def clear_grad(self):
         self.grad = None
-    def backward(self, no_grad=True, create_graph=False):
+    def backward(self, retain_grad=True, create_graph=False):
         if self.grad is None:
             self.grad = Variable(np.ones_like(self.data))
         funcs = []
@@ -107,7 +107,7 @@ class Variable:
                         x.grad += gx
                     if x.creator is not None:
                        add_func(x.creator)
-                if no_grad:
+                if retain_grad:
                     for y in f.outputs:
                         y().grad = None
 class Function:
