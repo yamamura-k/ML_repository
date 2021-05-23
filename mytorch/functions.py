@@ -83,6 +83,26 @@ class SumTo(Function):
     def backward(self, gy):
         gx = broadcast_to(gy, self.x_shape)
         return gx
+class GetItem(Function):
+    def __init__(self, slices):
+        self.slices = slices
+    def forward(self, x):
+        y = x[self.slices]
+        return y
+    def backward(self, gy):
+        x, = self.inputs
+        f = GetItemGrad(self.slices, x.shape)
+        return f(gy)
+class GetItemGrad(Function):
+    def __init__(self, slices, in_shape) -> None:
+        self.slices = slices
+        self.in_shape = in_shape
+    def forward(self, gy):
+        gx = np.zeros(self.in_shape, dtype=gy.dtype)
+        np.add.at(gx, self.slices, gy)
+        return gx
+    def backward(self, ggx):
+        return get_item(ggx, self.slices)
 class MatMul(Function):
     def forward(self, x, W):
         y = x.dot(W)
@@ -134,6 +154,65 @@ class ReLU(Function):
         mask = x.data > 0
         gx = gy*mask
         return gx
+class Max(Function):
+    def __init__(self, axis=None, keepdims=False):
+        self.axis = axis
+        self.keepdims = keepdims
+    def forward(self, x):
+        y = x.max(axis=self.axis, keepdims=self.keepdims)
+        return y
+    def backward(self, gy):
+        x = self.inputs[0]
+        y = self.outputs[0]()  # weakref
+        shape = utils.max_backward_shape(x, self.axis)
+        gy = reshape(gy, shape)
+        y = reshape(y, shape)
+        cond = (x.data == y.data)
+        gy = broadcast_to(gy, cond.shape)
+        return gy * cond
+class Min(Max):
+    def forward(self, x):
+        y = x.min(axis=self.axis, keepdims=self.keepdims)
+        return y
+class Clip(Function):
+    def __init__(self, x_min, x_max):
+        self.x_min = x_min
+        self.x_max = x_max
+    def forward(self, x):
+        y = np.clip(x, self.x_min, self.x_max)
+        return y
+    def backward(self, gy):
+        x, = self.inputs
+        mask = (x.data >= self.x_min) * (x.data <= self.x_max)
+        gx = gy * mask
+        return gx
+class Softmax(Function):
+    def __init__(self, axis=1):
+        self.axis = axis
+    def forward(self, x):
+        y = x - x.max(axis=self.axis, keepdims=True)
+        y = np.exp(y)
+        y /= y.sum(axis=self.axis, keepdims=True)
+        return y
+    def backward(self, gy):
+        y = self.outputs[0]()
+        gx = y * gy
+        sumdx = gx.sum(axis=self.axis, keepdims=True)
+        gx -= y * sumdx
+        return gx
+class LogSoftmax(Function):
+    def __init__(self, axis=1):
+        self.axis = axis
+    def forward(self, x):
+        log_z = utils.logsumexp(x, self.axis)
+        y = x - log_z
+        return y
+    def backward(self, gy):
+        y = self.outputs[0]()
+        gx = gy - exp(y) * gy.sum(axis=self.axis, keepdims=True)
+        return gx
+
+
 
 def exp(x):
     return Exp()(x)
@@ -172,3 +251,16 @@ def sigmoid(x):
     return Sigmoid()(x)
 def relu(x):
     return ReLU()(x)
+def get_item(x, slices):
+    f = GetItem(slices)
+    return f(x)
+def max(x, axis=None, keepdims=False):
+    return Max(axis, keepdims)(x)
+def min(x, axis=None, keepdims=False):
+    return Min(axis, keepdims)(x)
+def clip(x, x_min, x_max):
+    return Clip(x_min, x_max)(x)
+def softmax(x, axis=1):
+    return Softmax(axis)(x)
+def log_softmax(x, axis=1):
+    return LogSoftmax(axis)(x)

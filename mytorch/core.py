@@ -125,6 +125,8 @@ class Variable:
         return len(self.data)
     def __pow__(self, c):
         return pow(self, c)
+    def __getitem__(self, slices):
+        return mytorch.functions.get_item(self, slices)
     def __repr__(self) -> str:
         if self.data is None:
             return "variable(None)"
