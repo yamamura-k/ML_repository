@@ -1,6 +1,5 @@
 import weakref
 import numpy as np
-from numpy.lib.arraysetops import isin
 
 import mytorch.functions as F
 from mytorch.core import Parameter
