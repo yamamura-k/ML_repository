@@ -1,5 +1,4 @@
 from logging import getLogger, StreamHandler, FileHandler
-
 from colorlog import ColoredFormatter
 
 class setupLogger:
