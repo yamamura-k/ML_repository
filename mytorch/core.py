@@ -130,7 +130,10 @@ class Variable:
             return "variable(None)"
         p = str(self.data).replace("\n", "\n" + " "*9)
         return 'variable(' + p + ')'#f"variable({p})"
-        
+
+class Parameter(Variable):
+    pass
+
 class Function:
     def __call__(self, *inputs):
         inputs = [as_variable(x) for x in inputs]
